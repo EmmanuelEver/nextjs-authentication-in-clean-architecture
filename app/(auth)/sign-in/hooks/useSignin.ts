@@ -1,4 +1,4 @@
-import { signin } from "@/lib/actions/auth";
+import { signin, signInWithGoogle as googleSignIn } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
 import { useState } from "react";
 
@@ -23,7 +23,11 @@ const useSignin = () => {
     setError(result.message || "An unknown error occurred");
   };
 
-  return { isLoading, handleSubmit, error };
+  const signInWithGoogle = () => {
+    googleSignIn();
+  };
+
+  return { isLoading, handleSubmit, error, signInWithGoogle };
 };
 
 export default useSignin;

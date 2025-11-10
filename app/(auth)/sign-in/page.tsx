@@ -7,7 +7,7 @@ import Link from "next/link";
 import useSignin from "./hooks/useSignin";
 
 export default function SignInPage() {
-  const { handleSubmit, error, isLoading } = useSignin();
+  const { handleSubmit, error, isLoading, signInWithGoogle } = useSignin();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
@@ -70,7 +70,12 @@ export default function SignInPage() {
           </div>
         </div>
 
-        <Button variant="outline" className="w-full" disabled={isLoading}>
+        <Button
+          variant="outline"
+          className="w-full"
+          disabled={isLoading}
+          onClick={signInWithGoogle}
+        >
           <svg
             className="mr-2 h-4 w-4"
             aria-hidden="true"

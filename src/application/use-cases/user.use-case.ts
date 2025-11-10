@@ -22,6 +22,16 @@ export class UserUseCase {
     return toUserDto(user);
   }
 
+  async createUser(
+    user: Omit<UserDto, "id" | "createdAt" | "updatedAt">
+  ): Promise<UserDto> {
+    const newUser = await this.userRepository.createUser(user);
+    if (!newUser) {
+      throw new NotFoundError("User not found");
+    }
+    return toUserDto(newUser);
+  }
+
   async updateUser(
     userId: string,
     userData: UpdateUserSchema

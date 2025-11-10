@@ -1,14 +1,10 @@
 "use server";
 
-import { AuthRepository } from "@/src/infrastructure/auth.repository";
 import { treeifyError, z } from "zod";
-import { AuthUseCase } from "@/src/application/use-cases/auth.use-case";
-import { SessionRepository } from "@/src/infrastructure/session.repository";
-import { AuthController } from "@/src/controllers/auth.controller";
 import { cookies } from "next/headers";
-import UserRepository from "@/src/infrastructure/user.repository";
-import { UserUseCase } from "@/src/application/use-cases/user.use-case";
 import { redirect } from "next/navigation";
+import { OAuthProvider } from "@/src/lib/db/schema";
+import { authControllerInstance } from "../di/authServiceProvider";
 
 const signInSchema = z.object({
   email: z.string().email(),
@@ -39,16 +35,12 @@ const signUpSchema = z
   });
 
 export const signup = async (data: z.infer<typeof signUpSchema>) => {
-  const userRepository = new AuthRepository();
-  const sessionRepository = new SessionRepository();
-  const signupUserUseCase = new AuthUseCase(userRepository, sessionRepository);
-  const authController = new AuthController(signupUserUseCase);
   try {
     const { name, email, password } = signUpSchema.parse({
       ...data,
     });
 
-    const newUser = await authController.signUp(name, email, password);
+    const newUser = await authControllerInstance.signUp(name, email, password);
 
     console.log("User registered successfully:", newUser);
     return { success: true };
@@ -62,15 +54,14 @@ export const signup = async (data: z.infer<typeof signUpSchema>) => {
 };
 
 export const signin = async (data: z.infer<typeof signInSchema>) => {
-  const userRepository = new AuthRepository();
-  const sessionRepository = new SessionRepository();
-  const authUseCase = new AuthUseCase(userRepository, sessionRepository);
-  const authController = new AuthController(authUseCase);
   try {
     const { email, password } = signInSchema.parse({
       ...data,
     });
-    const userWithSession = await authController.signIn(email, password);
+    const userWithSession = await authControllerInstance.signIn(
+      email,
+      password
+    );
     if (!userWithSession?.user) {
       return { success: false, message: "Invalid email or password" };
     }
@@ -93,10 +84,6 @@ export const signin = async (data: z.infer<typeof signInSchema>) => {
 };
 
 export const signout = async () => {
-  const userRepository = new AuthRepository();
-  const sessionRepository = new SessionRepository();
-  const authUseCase = new AuthUseCase(userRepository, sessionRepository);
-  const authController = new AuthController(authUseCase);
   const cookieStore = await cookies();
   const sessionId = cookieStore.get("session")?.value;
   if (!sessionId) {
@@ -104,7 +91,7 @@ export const signout = async () => {
   }
 
   try {
-    await authController.signOut(sessionId!);
+    await authControllerInstance.signOut(sessionId!);
     cookieStore.delete("session");
   } catch (error) {
     console.error("❌ Signout error:", error);
@@ -114,28 +101,72 @@ export const signout = async () => {
 };
 
 export const getUserSession = async () => {
-  const authRepository = new AuthRepository();
-  const userRepository = new UserRepository();
-
-  const sessionRepository = new SessionRepository();
-  const userUseCase = new UserUseCase(userRepository);
-
-  const authUseCase = new AuthUseCase(authRepository, sessionRepository);
-  const authController = new AuthController(authUseCase);
   try {
     const sessionId = (await cookies()).get("session")?.value;
     if (!sessionId) {
       return { success: false, message: "Session not found" };
     }
-    const session = await authController.getUserSession(sessionId);
+    const { session, user } = await authControllerInstance.getUserSession(
+      sessionId
+    );
     if (!session) {
       return { success: false, message: "Session not found" };
     }
-    const user = await userUseCase.findById(session.userId);
-    if (!user) {
-      return { success: false, message: "User not found" };
+    return { success: true, session, user };
+  } catch (error) {
+    console.log({ error });
+    if (error instanceof z.ZodError) {
+      return { success: false, errors: error.flatten().fieldErrors };
     }
-    return { success: true, user: user, session: session };
+    return { success: false, message: (error as Error).message };
+  }
+};
+
+export const signInWithGoogle = async () => {
+  const googleAuthUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  googleAuthUrl.searchParams.set(
+    "client_id",
+    process.env.GOOGLE_OAUTH_CLIENT_ID!
+  );
+  googleAuthUrl.searchParams.set(
+    "redirect_uri",
+    process.env.GOOGLE_OAUTH_REDIRECT_URI!
+  );
+  googleAuthUrl.searchParams.set("response_type", "code");
+  googleAuthUrl.searchParams.set("scope", "email profile");
+  redirect(googleAuthUrl.toString());
+};
+
+export const signUpIfNotExists = async ({
+  email,
+  name,
+  strategy,
+  providerAccountId,
+}: {
+  email: string;
+  name: string;
+  strategy: OAuthProvider;
+  providerAccountId: string;
+}) => {
+  try {
+    const { user, session } = await authControllerInstance.oAuthSignIn({
+      email,
+      name,
+      strategy,
+      providerAccountId,
+    });
+    if (user && session) {
+      const cookieStore = await cookies();
+      cookieStore.set("session", session.id, {
+        httpOnly: true,
+        secure: true,
+        expires: session.expiresAt,
+        sameSite: "lax",
+        path: "/",
+      });
+      return { success: true, user: user, session: session };
+    }
+    return { success: false, message: "User not found" };
   } catch (error) {
     console.log({ error });
     if (error instanceof z.ZodError) {

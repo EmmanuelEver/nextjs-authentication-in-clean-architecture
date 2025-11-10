@@ -21,6 +21,14 @@ class UserRepository implements IUserRepository {
       .limit(1);
     return user;
   }
+
+  async createUser(
+    user: Omit<User, "id" | "createdAt" | "updatedAt">
+  ): Promise<User> {
+    const [createdUser] = await db.insert(users).values(user).returning();
+    return createdUser;
+  }
+
   async updateUser(userId: string, user: User): Promise<User> {
     const [updatedUser] = await db
       .update(users)
