@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { OAuthProvider } from "@/src/lib/db/schema";
 import { authControllerInstance } from "../di/authServiceProvider";
+import { oAuthProvider } from "../auth/oauthProviders";
 
 const signInSchema = z.object({
   email: z.string().email(),
@@ -120,6 +121,16 @@ export const getUserSession = async () => {
     }
     return { success: false, message: (error as Error).message };
   }
+};
+
+export const oAuthSignIn = async (provider: OAuthProvider) => {
+  const providerObject = oAuthProvider[provider as keyof typeof oAuthProvider];
+  const googleAuthUrl = new URL(providerObject.authUrl);
+  googleAuthUrl.searchParams.set("client_id", providerObject.clientId);
+  googleAuthUrl.searchParams.set("redirect_uri", providerObject.redirectUri);
+  googleAuthUrl.searchParams.set("response_type", providerObject.responseType);
+  googleAuthUrl.searchParams.set("scope", providerObject.scope);
+  redirect(googleAuthUrl.toString());
 };
 
 export const signInWithGoogle = async () => {

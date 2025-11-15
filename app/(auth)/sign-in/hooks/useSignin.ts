@@ -1,8 +1,10 @@
-import { signin, signInWithGoogle as googleSignIn } from "@/lib/actions/auth";
-import { redirect } from "next/navigation";
-import { useState } from "react";
+import { signin, oAuthSignIn } from "@/lib/actions/auth";
+import { redirect, useSearchParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const useSignin = () => {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -13,7 +15,6 @@ const useSignin = () => {
     setError(null);
     setIsLoading(true);
     const result = await signin({ email, password });
-    console.log(result);
     if (result.success) {
       // Redirect to dashboard or home page
       setIsLoading(false);
@@ -23,11 +24,15 @@ const useSignin = () => {
     setError(result.message || "An unknown error occurred");
   };
 
-  const signInWithGoogle = () => {
-    googleSignIn();
-  };
+  useEffect(() => {
+    const error = searchParams.get("error");
+    if (error) {
+      setError(error);
+      router.replace(`/sign-in`);
+    }
+  }, [searchParams, router]);
 
-  return { isLoading, handleSubmit, error, signInWithGoogle };
+  return { isLoading, handleSubmit, error, oAuthSignIn };
 };
 
 export default useSignin;
