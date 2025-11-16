@@ -38,4 +38,17 @@ export const oAuthProvider = {
     responseType: "code",
     scope: "email+identify",
   },
+  facebook: {
+    authUrl: process.env.FACEBOOK_OAUTH_AUTH_URL!,
+    tokenUrl: "https://graph.facebook.com/v24.0/oauth/access_token",
+    userInfoUrl: "https://graph.facebook.com/me?fields=id,name,email",
+    clientId: process.env.FACEBOOK_OAUTH_CLIENT_ID!,
+    clientSecret: process.env.FACEBOOK_OAUTH_CLIENT_SECRET!,
+    redirectUri: process.env.FACEBOOK_OAUTH_REDIRECT_URI!,
+    tokenParams: {
+      grant_type: "authorization_code",
+    },
+    responseType: "code",
+    scope: "public_profile email",
+  },
 } as const;

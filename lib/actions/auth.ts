@@ -130,6 +130,10 @@ export const oAuthSignIn = async (provider: OAuthProvider) => {
   googleAuthUrl.searchParams.set("redirect_uri", providerObject.redirectUri);
   googleAuthUrl.searchParams.set("response_type", providerObject.responseType);
   googleAuthUrl.searchParams.set("scope", providerObject.scope);
+  if (provider === "facebook") {
+    const stateStr = crypto.randomUUID();
+    googleAuthUrl.searchParams.set("state", stateStr);
+  }
   redirect(googleAuthUrl.toString());
 };
 
