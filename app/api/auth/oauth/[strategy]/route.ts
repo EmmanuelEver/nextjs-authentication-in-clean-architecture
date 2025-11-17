@@ -74,7 +74,6 @@ async function exchangeCodeForToken(
   }
 
   const data = await response.json();
-
   if (!data.access_token || !data.token_type) {
     throw new Error("Invalid token response from OAuth provider");
   }
@@ -85,9 +84,14 @@ async function exchangeCodeForToken(
 async function fetchUserInfo(
   tokenUrl: string,
   accessToken: string,
-  tokenType: string
+  tokenType: string,
+  strategy: OAuthProvider
 ) {
-  const response = await fetch(tokenUrl, {
+  const tokenFullUrl = new URL(tokenUrl);
+  if (strategy === "facebook") {
+    tokenFullUrl.searchParams.set("access_token", accessToken);
+  }
+  const response = await fetch(tokenFullUrl, {
     method: "GET",
     headers: {
       Authorization: `${tokenType} ${accessToken}`,
@@ -134,14 +138,12 @@ export async function GET(
     const providerKey = validatedStrategy as keyof typeof oAuthProvider;
 
     const tokenData = await exchangeCodeForToken(code, providerKey);
-
-    // Fetch user information
     const userInfo = await fetchUserInfo(
       oAuthProvider[providerKey].userInfoUrl,
       tokenData.access_token,
-      tokenData.token_type
+      tokenData.token_type,
+      validatedStrategy
     );
-
     const { email, name, providerAccountId } = extractUserInfo(
       userInfo,
       validatedStrategy
